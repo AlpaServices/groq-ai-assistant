@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -16,27 +19,21 @@ export async function POST(request: NextRequest) {
     const fileBuffer = Buffer.from(await file.arrayBuffer());
     let extractedText = '';
 
-    // Handle different file types
     if (fileName.endsWith('.txt') || fileName.endsWith('.md') || fileName.endsWith('.csv')) {
-      // Plain text files
       extractedText = fileBuffer.toString('utf-8');
     } 
     else if (fileName.endsWith('.json')) {
-      // JSON files
       const jsonContent = JSON.parse(fileBuffer.toString('utf-8'));
       extractedText = JSON.stringify(jsonContent, null, 2);
     }
     else if (fileName.endsWith('.docx')) {
-      // Word documents
       const mammoth = require('mammoth');
       const result = await mammoth.extractRawText({ buffer: fileBuffer });
       extractedText = result.value;
     }
     else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-      // Excel files
       const XLSX = require('xlsx');
       const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
-      
       extractedText = '';
       workbook.SheetNames.forEach((sheetName: string) => {
         extractedText += `\n=== Sheet: ${sheetName} ===\n`;
@@ -46,7 +43,6 @@ export async function POST(request: NextRequest) {
       });
     }
     else if (fileName.endsWith('.pdf')) {
-      // PDF files
       try {
         const pdfParse = require('pdf-parse');
         const pdfData = await pdfParse(fileBuffer);
@@ -56,7 +52,6 @@ export async function POST(request: NextRequest) {
       }
     }
     else {
-      // Try to read as plain text for unknown types
       try {
         extractedText = fileBuffer.toString('utf-8');
       } catch {
@@ -67,7 +62,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Truncate if too long (Groq has context limits)
     const maxLength = 50000;
     if (extractedText.length > maxLength) {
       extractedText = extractedText.substring(0, maxLength) + '\n\n[... Content truncated due to length ...]';
@@ -90,9 +84,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
